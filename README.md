@@ -4,8 +4,9 @@ Minimal Telegram water-tracking bot using `python-telegram-bot` (v22+) + SQLite.
 
 ## Features
 - `/start` onboarding + **Open Panel** button
-- `/w` opens quick panel (`+150`, `+250`, `+500`, custom prompt)
+- `/w` opens quick panel (`+150`, `+250`, `+500`, `Custom`)
 - `/w <ml>` logs custom amount
+- `Custom` button asks for your next numeric ml input (same logging flow)
 - `/leaderboard` shows today's totals in the current group (chat-scoped)
 - `/undo` removes your last entry in this chat
 - Safety: one allowed group only, configured by `/setup <ADMIN_CODE>`

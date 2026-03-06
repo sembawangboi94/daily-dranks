@@ -10,6 +10,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 from db import WaterDB
@@ -51,8 +53,8 @@ def panel_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("+150", callback_data="add:150"),
                 InlineKeyboardButton("+250", callback_data="add:250"),
                 InlineKeyboardButton("+500", callback_data="add:500"),
+                InlineKeyboardButton("Custom", callback_data="custom"),
             ],
-            [InlineKeyboardButton("Custom amount", callback_data="custom")],
         ]
     )
 
@@ -204,12 +206,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if query.data == "custom":
-        await query.edit_message_text("Use /w <ml> to log a custom amount (e.g. /w 320).")
+        context.user_data["awaiting_custom_ml"] = True
+        context.user_data["awaiting_chat_id"] = update.effective_chat.id
+        await query.edit_message_text("Send a number in ml (e.g. 320).")
         return
 
     if query.data and query.data.startswith("add:"):
         amount = int(query.data.split(":", 1)[1])
         await log_amount(update, amount)
+
+
+async def handle_custom_amount_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat or not update.effective_user or not update.message:
+        return
+    chat_id = update.effective_chat.id
+    if not in_allowed_chat(chat_id):
+        return
+
+    awaiting = context.user_data.get("awaiting_custom_ml")
+    awaiting_chat = context.user_data.get("awaiting_chat_id")
+    if not awaiting or awaiting_chat != chat_id:
+        return
+
+    text = (update.message.text or "").strip()
+    if not text.isdigit():
+        await update.message.reply_text("Please send only a number in ml (e.g. 320).")
+        return
+
+    amount = int(text)
+    context.user_data.pop("awaiting_custom_ml", None)
+    context.user_data.pop("awaiting_chat_id", None)
+    await log_amount(update, amount)
 
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -256,6 +283,7 @@ def main():
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CommandHandler("undo", undo))
     app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_amount_input))
 
     app.run_polling(close_loop=False)
 
